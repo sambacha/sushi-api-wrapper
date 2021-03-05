@@ -2017,7 +2017,7 @@ export interface User_Filter {
 
 export type PairsVolumeQueryVariables = Exact<{
   limit: Scalars['Int'];
-  pairIds: ReadonlyArray<Scalars['ID']> | Scalars['ID'];
+  pairIds: ReadonlyArray<Scalars['ID']>;
   blockNumber: Scalars['Int'];
 }>;
 
@@ -2026,18 +2026,18 @@ export type PairsVolumeQuery = (
   { readonly __typename?: 'Query' }
   & { readonly pairVolumes: ReadonlyArray<(
     { readonly __typename?: 'Pair' }
-    & Pick<Pair, 'id' | 'volumeToken0' | 'volumeToken1'>
+    & Pick<Pair, '[object Object]' | '[object Object]' | '[object Object]'>
   )> }
 );
 
 export type TokenInfoFragment = (
   { readonly __typename?: 'Token' }
-  & Pick<Token, 'id' | 'symbol' | 'name'>
+  & Pick<Token, '[object Object]' | '[object Object]' | '[object Object]'>
 );
 
 export type TopPairsQueryVariables = Exact<{
   limit: Scalars['Int'];
-  excludeTokenIds: ReadonlyArray<Scalars['String']> | Scalars['String'];
+  excludeTokenIds: ReadonlyArray<Scalars['String']>;
 }>;
 
 
@@ -2045,7 +2045,7 @@ export type TopPairsQuery = (
   { readonly __typename?: 'Query' }
   & { readonly pairs: ReadonlyArray<(
     { readonly __typename?: 'Pair' }
-    & Pick<Pair, 'id' | 'reserve0' | 'reserve1' | 'volumeToken0' | 'volumeToken1'>
+    & Pick<Pair, '[object Object]' | '[object Object]' | '[object Object]' | '[object Object]' | '[object Object]'>
     & { readonly token0: (
       { readonly __typename?: 'Token' }
       & TokenInfoFragment
@@ -2066,7 +2066,7 @@ export type PairReservesQuery = (
   { readonly __typename?: 'Query' }
   & { readonly pairs: ReadonlyArray<(
     { readonly __typename?: 'Pair' }
-    & Pick<Pair, 'reserve0' | 'reserve1'>
+    & Pick<Pair, '[object Object]' | '[object Object]'>
   )> }
 );
 
@@ -2081,7 +2081,7 @@ export type SwapsByPairQuery = (
   { readonly __typename?: 'Query' }
   & { readonly swaps: ReadonlyArray<(
     { readonly __typename?: 'Swap' }
-    & Pick<Swap, 'id' | 'timestamp' | 'amount0In' | 'amount0Out' | 'amount1In' | 'amount1Out'>
+    & Pick<Swap, '[object Object]' | '[object Object]' | '[object Object]' | '[object Object]' | '[object Object]' | '[object Object]'>
   )> }
 );
 
@@ -2095,6 +2095,6 @@ export type SwapsByTokensQuery = (
   { readonly __typename?: 'Query' }
   & { readonly pairs: ReadonlyArray<(
     { readonly __typename?: 'Pair' }
-    & Pick<Pair, 'id'>
+    & Pick<Pair, '[object Object]'>
   )> }
 );
