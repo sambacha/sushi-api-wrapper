@@ -1,16 +1,23 @@
-import { getAddress } from '@ethersproject/address'
-import { APIGatewayProxyHandler } from 'aws-lambda'
-import BigNumber from 'bignumber.js'
+import { getAddress } from '@ethersproject/address';
+import { APIGatewayProxyHandler } from 'aws-lambda';
+import BigNumber from 'bignumber.js';
 
-import { getSwaps } from './_shared'
-import { createSuccessResponse, createBadRequestResponse, createServerErrorResponse } from '../utils/response'
+import { getSwaps } from './_shared';
+import {
+  createSuccessResponse,
+  createBadRequestResponse,
+  createServerErrorResponse,
+} from '../utils/response';
 
-export const handler: APIGatewayProxyHandler = async event =>
-{
+export const handler: APIGatewayProxyHandler = async (event) => {
   // Validate the pair tokenA_tokenB given
-  if (!event.pathParameters?.pair || !/^0x[0-9a-fA-F]{40}_0x[0-9a-fA-F]{40}$/.test(event.pathParameters.pair))
-  {
-    return createBadRequestResponse('Invalid pair identifier: must be of format tokenAddress_tokenAddress');
+  if (
+    !event.pathParameters?.pair ||
+    !/^0x[0-9a-fA-F]{40}_0x[0-9a-fA-F]{40}$/.test(event.pathParameters.pair)
+  ) {
+    return createBadRequestResponse(
+      'Invalid pair identifier: must be of format tokenAddress_tokenAddress',
+    );
   }
 
   // Split the pair into two tokens
@@ -18,21 +25,16 @@ export const handler: APIGatewayProxyHandler = async event =>
 
   let idA: string, idB: string;
 
-  try
-  {
+  try {
     // Validate correct ethereum addresses
-    ;[idA, idB] = [
-      getAddress(tokenA),
-      getAddress(tokenB)
-    ];
-  }
-  catch (error)
-  {
-    return createBadRequestResponse('Invalid pair identifier: both asset identifiers must be *checksummed* addresses')
+    [idA, idB] = [getAddress(tokenA), getAddress(tokenB)];
+  } catch (error) {
+    return createBadRequestResponse(
+      'Invalid pair identifier: both asset identifiers must be *checksummed* addresses',
+    );
   }
 
-  try
-  {
+  try {
     const swaps = await getSwaps(idA, idB);
     // console.log(swaps);
     /*
@@ -51,7 +53,7 @@ export const handler: APIGatewayProxyHandler = async event =>
     },
     */
 
-    let responseBody = swaps.map(swap => {
+    let responseBody = swaps.map((swap) => {
       // console.log(swap);
       /*
       {
@@ -86,7 +88,13 @@ export const handler: APIGatewayProxyHandler = async event =>
       const isBorrowBoth = aOut && bOut && aIn && bIn;
 
       // For trades there's either a BUY, SELL, BORROW-BOTH or UNKNOWN
-      const type = isBuy ? 'buy' : isSell ? 'sell' : isBorrowBoth ? 'borrow-both' : '???';
+      const type = isBuy
+        ? 'buy'
+        : isSell
+        ? 'sell'
+        : isBorrowBoth
+        ? 'borrow-both'
+        : '???';
 
       // Figure the base and quote amount
       const baseAmount = aOut ? swap.amountAOut : swap.amountAIn;
@@ -98,8 +106,7 @@ export const handler: APIGatewayProxyHandler = async event =>
       // console.log('A: ' + price);
 
       let calc = undefined;
-      if (baseAmount !== '0')
-      {
+      if (baseAmount !== '0') {
         calc = new BigNumber(quoteAmount);
         price = calc.dividedBy(new BigNumber(baseAmount)).toString();
       }
@@ -111,14 +118,12 @@ export const handler: APIGatewayProxyHandler = async event =>
         quote_volume: quoteAmount,
         type,
         trade_timestamp: swap.timestamp,
-        price
-      }
+        price,
+      };
     });
 
     return createSuccessResponse(responseBody);
-  }
-  catch (error)
-  {
+  } catch (error) {
     return createServerErrorResponse(error);
   }
-}
+};

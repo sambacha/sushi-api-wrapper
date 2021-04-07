@@ -1,14 +1,16 @@
-import BigNumber from 'bignumber.js'
+import BigNumber from 'bignumber.js';
 
-function getAmountOut(amountIn: BigNumber, reservesIn: BigNumber, reservesOut: BigNumber): {
+function getAmountOut(
+  amountIn: BigNumber,
+  reservesIn: BigNumber,
+  reservesOut: BigNumber,
+): {
   amountOut: BigNumber;
   reservesInAfter: BigNumber;
-  reservesOutAfter: BigNumber
+  reservesOutAfter: BigNumber;
 } {
-
   let amountOut = new BigNumber(0);
-  if (!amountIn.eq(0))
-  {
+  if (!amountIn.eq(0)) {
     // amountOut = reservesOut.minus(
     //     reservesOut.multipliedBy(reservesIn).dividedBy(
     //       reservesIn.plus(amountIn.multipliedBy(0.997))
@@ -44,21 +46,20 @@ function getAmountOut(amountIn: BigNumber, reservesIn: BigNumber, reservesOut: B
   return result;
 }
 
-function getAmountIn(amountOut: BigNumber, reservesIn: BigNumber, reservesOut: BigNumber): {
+function getAmountIn(
+  amountOut: BigNumber,
+  reservesIn: BigNumber,
+  reservesOut: BigNumber,
+): {
   amountIn: BigNumber;
   reservesInAfter: BigNumber;
-  reservesOutAfter: BigNumber
+  reservesOutAfter: BigNumber;
 } {
-
   let amountIn = new BigNumber(0);
-  if (!amountOut.eq(0))
-  {
-    if (amountOut.isGreaterThanOrEqualTo(reservesOut))
-    {
+  if (!amountOut.eq(0)) {
+    if (amountOut.isGreaterThanOrEqualTo(reservesOut)) {
       amountIn = new BigNumber(Infinity);
-    }
-    else
-    {
+    } else {
       // amountIn = reservesIn
       //   .multipliedBy(reservesOut)
       //   .dividedBy(reservesOut.minus(amountOut)) // reserves in after
@@ -98,55 +99,64 @@ function getAmountIn(amountOut: BigNumber, reservesIn: BigNumber, reservesOut: B
   return result;
 }
 
-export function computeBidsAsks(baseReserves: BigNumber, quoteReserves: BigNumber, numSegments: number = 200): {
+export function computeBidsAsks(
+  baseReserves: BigNumber,
+  quoteReserves: BigNumber,
+  numSegments: number = 200,
+): {
   bids: [string, string][];
-  asks: [string, string][]
+  asks: [string, string][];
 } {
   // Return empty bids and asks if there are no reserves
   if (baseReserves.eq(0) || quoteReserves.eq(0)) {
     return {
       bids: [],
-      asks: []
-    }
+      asks: [],
+    };
   }
 
   // we don't do exactly 100 segments because we do not care about the trade that takes exact out of entire reserves
-  const increment = baseReserves.dividedBy(numSegments + 1)
+  const increment = baseReserves.dividedBy(numSegments + 1);
   console.log(`C BID/ASKS: Increment ${increment}`);
-  const baseAmounts = Array.from({ length: numSegments }, (x, i): BigNumber => {
-    return increment.multipliedBy(i);
-  });
+  const baseAmounts = Array.from(
+    { length: numSegments },
+    (x, i): BigNumber => {
+      return increment.multipliedBy(i);
+    },
+  );
   console.log(baseAmounts);
 
   // Calculates the bids
   const bids = baseAmounts.map((buyBaseAmount): [string, string] => {
     const {
       reservesInAfter: baseReservesBefore,
-      reservesOutAfter: quoteReservesBefore
+      reservesOutAfter: quoteReservesBefore,
     } = getAmountOut(buyBaseAmount, baseReserves, quoteReserves);
 
-    const { amountOut } = getAmountOut(increment, baseReservesBefore, quoteReservesBefore);
+    const { amountOut } = getAmountOut(
+      increment,
+      baseReservesBefore,
+      quoteReservesBefore,
+    );
 
-    return [
-      increment.toString(),
-      amountOut.dividedBy(increment).toString()
-    ];
+    return [increment.toString(), amountOut.dividedBy(increment).toString()];
   });
 
   // Calculates the asks
   const asks = baseAmounts.map((sellBaseAmount): [string, string] => {
     const {
       reservesInAfter: baseReservesBefore,
-      reservesOutAfter: quoteReservesBefore
+      reservesOutAfter: quoteReservesBefore,
     } = getAmountIn(sellBaseAmount, quoteReserves, baseReserves);
 
-    const { amountIn } = getAmountIn(increment, baseReservesBefore, quoteReservesBefore);
+    const { amountIn } = getAmountIn(
+      increment,
+      baseReservesBefore,
+      quoteReservesBefore,
+    );
 
-    return [
-      increment.toString(),
-      amountIn.dividedBy(increment).toString()
-    ]
+    return [increment.toString(), amountIn.dividedBy(increment).toString()];
   });
 
-  return { bids, asks }
+  return { bids, asks };
 }

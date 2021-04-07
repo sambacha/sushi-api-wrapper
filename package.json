@@ -1,7 +1,7 @@
 {
   "name": "@backbonecabal/sushi-api",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "dependencies": {
     "@ethersproject/address": "^5.0.0-beta.125",
     "@nestjs/common": "^7.6.13",

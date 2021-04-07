@@ -1,15 +1,15 @@
-import BigNumber from 'bignumber.js'
-import BLACKLIST from '../constants/blacklist'
+import BigNumber from 'bignumber.js';
+import BLACKLIST from '../constants/blacklist';
 
-import client from './apollo/client'
+import client from './apollo/client';
 import {
   PAIR_RESERVES_BY_TOKENS,
   SWAPS_BY_PAIR,
   TOP_PAIRS,
   PAIR_FROM_TOKENS,
-  PAIRS_VOLUME_QUERY
-} from './apollo/queries'
-import { getBlockFromTimestamp } from './blocks/queries'
+  PAIRS_VOLUME_QUERY,
+} from './apollo/queries';
+import { getBlockFromTimestamp } from './blocks/queries';
 import {
   PairReservesQuery,
   PairReservesQueryVariables,
@@ -18,29 +18,29 @@ import {
   SwapsByPairQuery,
   SwapsByPairQueryVariables,
   TopPairsQuery,
-  TopPairsQueryVariables
-} from './generated/v2-subgraph'
+  TopPairsQueryVariables,
+} from './generated/v2-subgraph';
 
-const SECOND = 1000
-const MINUTE = 60 * SECOND
-const HOUR = 60 * MINUTE
-const DAY = 24 * HOUR
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
-export function get24HoursAgo(): number
-{
+export function get24HoursAgo(): number {
   return Math.floor((Date.now() - DAY) / 1000);
 }
 
-export type Pair = TopPairsQuery['pairs'][number]
+export type Pair = TopPairsQuery['pairs'][number];
 
 export interface MappedDetailedPair extends Pair {
-  price?: string
-  previous24hVolumeToken0: BigNumber
-  previous24hVolumeToken1: BigNumber
+  price?: string;
+  previous24hVolumeToken0: BigNumber;
+  previous24hVolumeToken1: BigNumber;
 }
 
-export async function getTopPairs(limit: number = 10): Promise<MappedDetailedPair[]> {
-
+export async function getTopPairs(
+  limit: number = 10,
+): Promise<MappedDetailedPair[]> {
   // Get the current time in epoch
   const epochSecond = Math.floor(new Date().getTime() / SECOND);
   console.log('EPOCH: ' + epochSecond);
@@ -52,16 +52,18 @@ export async function getTopPairs(limit: number = 10): Promise<MappedDetailedPai
 
   // Fetching the top pairs
   const {
-    data: { pairs }, errors: topPairsErrors
+    data: { pairs },
+    errors: topPairsErrors,
   } = await client.query<TopPairsQuery, TopPairsQueryVariables>({
     query: TOP_PAIRS,
     variables: {
       limit: limit,
-      excludeTokenIds: BLACKLIST
+      excludeTokenIds: BLACKLIST,
     },
-    fetchPolicy: 'no-cache'
-  })
-  if (topPairsErrors && topPairsErrors.length > 0) throw new Error('Failed to fetch top pairs from the subgraph');
+    fetchPolicy: 'no-cache',
+  });
+  if (topPairsErrors && topPairsErrors.length > 0)
+    throw new Error('Failed to fetch top pairs from the subgraph');
   // console.log(pairs);
   /*
       __typename: 'Pair',
@@ -87,17 +89,19 @@ export async function getTopPairs(limit: number = 10): Promise<MappedDetailedPai
 
   // Pairs Volume Query with the block above
   const {
-    data: { pairVolumes }, errors: yesterdayVolumeErrors
+    data: { pairVolumes },
+    errors: yesterdayVolumeErrors,
   } = await client.query<PairsVolumeQuery, PairsVolumeQueryVariables>({
     query: PAIRS_VOLUME_QUERY,
     variables: {
       limit: limit,
-      pairIds: pairs.map(pair => pair.id),
-      blockNumber: +firstBlock
+      pairIds: pairs.map((pair) => pair.id),
+      blockNumber: +firstBlock,
     },
-    fetchPolicy: 'no-cache'
-  })
-  if (yesterdayVolumeErrors && yesterdayVolumeErrors.length > 0) throw new Error(`Failed to get volume info for 24h ago from the subgraph`);
+    fetchPolicy: 'no-cache',
+  });
+  if (yesterdayVolumeErrors && yesterdayVolumeErrors.length > 0)
+    throw new Error(`Failed to get volume info for 24h ago from the subgraph`);
   // console.log(pairVolumes);
   /*
     {
@@ -109,16 +113,19 @@ export async function getTopPairs(limit: number = 10): Promise<MappedDetailedPai
   */
 
   // Get yesterday volume index
-  const yesterdayVolumeIndex = pairVolumes?.reduce<{ [pairId: string]: {
-    volumeToken0: BigNumber;
-    volumeToken1: BigNumber
-  } }>((memo, pair) => {
+  const yesterdayVolumeIndex =
+    pairVolumes?.reduce<{
+      [pairId: string]: {
+        volumeToken0: BigNumber;
+        volumeToken1: BigNumber;
+      };
+    }>((memo, pair) => {
       memo[pair.id] = {
         volumeToken0: new BigNumber(pair.volumeToken0),
-        volumeToken1: new BigNumber(pair.volumeToken1)
-      }
-      return memo
-    }, {}) ?? {}
+        volumeToken1: new BigNumber(pair.volumeToken1),
+      };
+      return memo;
+    }, {}) ?? {};
   // console.log(yesterdayVolumeIndex);
   /*
   '0xf52f433b79d21023af94251958bed3b64a2b7930': {
@@ -127,33 +134,42 @@ export async function getTopPairs(limit: number = 10): Promise<MappedDetailedPai
   }
   */
 
-  let result = pairs?.map((pair): MappedDetailedPair => {
-    const yesterday = yesterdayVolumeIndex[pair.id];
+  let result =
+    pairs?.map(
+      (pair): MappedDetailedPair => {
+        const yesterday = yesterdayVolumeIndex[pair.id];
 
-    // Check if pair has yesterday volume
-    if (yesterday)
-    {
-      if (yesterday.volumeToken0.gt(pair.volumeToken0))
-      {
-        throw new Error(`Invalid subgraph response: pair ${pair.id} returned volumeToken0 < yesterday.volumeToken0`)
-      }
-      if (yesterday.volumeToken1.gt(pair.volumeToken1))
-      {
-        throw new Error(`Invalid subgraph response: pair ${pair.id} returned volumeToken1 < yesterday.volumeToken1`)
-      }
-    }
-    
-    return {
-      ...pair,
-      price: pair.reserve0 !== '0' && pair.reserve1 !== '0' ?
-        new BigNumber(pair.reserve1).dividedBy(pair.reserve0).toString() : undefined,
-        previous24hVolumeToken0: pair.volumeToken0 && yesterday?.volumeToken0 ?
-          new BigNumber(pair.volumeToken0).minus(yesterday.volumeToken0) : new BigNumber(pair.volumeToken0),
-        previous24hVolumeToken1: pair.volumeToken1 && yesterday?.volumeToken1 ?
-          new BigNumber(pair.volumeToken1).minus(yesterday.volumeToken1) : new BigNumber(pair.volumeToken1)
-      }
-    }
-  ) ?? [];
+        // Check if pair has yesterday volume
+        if (yesterday) {
+          if (yesterday.volumeToken0.gt(pair.volumeToken0)) {
+            throw new Error(
+              `Invalid subgraph response: pair ${pair.id} returned volumeToken0 < yesterday.volumeToken0`,
+            );
+          }
+          if (yesterday.volumeToken1.gt(pair.volumeToken1)) {
+            throw new Error(
+              `Invalid subgraph response: pair ${pair.id} returned volumeToken1 < yesterday.volumeToken1`,
+            );
+          }
+        }
+
+        return {
+          ...pair,
+          price:
+            pair.reserve0 !== '0' && pair.reserve1 !== '0'
+              ? new BigNumber(pair.reserve1).dividedBy(pair.reserve0).toString()
+              : undefined,
+          previous24hVolumeToken0:
+            pair.volumeToken0 && yesterday?.volumeToken0
+              ? new BigNumber(pair.volumeToken0).minus(yesterday.volumeToken0)
+              : new BigNumber(pair.volumeToken0),
+          previous24hVolumeToken1:
+            pair.volumeToken1 && yesterday?.volumeToken1
+              ? new BigNumber(pair.volumeToken1).minus(yesterday.volumeToken1)
+              : new BigNumber(pair.volumeToken1),
+        };
+      },
+    ) ?? [];
   // console.log(result);
   /*
     {
@@ -185,19 +201,20 @@ export async function getTopPairs(limit: number = 10): Promise<MappedDetailedPai
 }
 
 function isSorted(tokenA: string, tokenB: string): boolean {
-  return tokenA.toLowerCase() < tokenB.toLowerCase()
+  return tokenA.toLowerCase() < tokenB.toLowerCase();
 }
 
-function sortedFormatted(tokenA: string, tokenB: string): [string, string]
-{
+function sortedFormatted(tokenA: string, tokenB: string): [string, string] {
   return isSorted(tokenA, tokenB)
     ? [tokenA.toLowerCase(), tokenB.toLowerCase()]
-    : [tokenB.toLowerCase(), tokenA.toLowerCase()]
+    : [tokenB.toLowerCase(), tokenA.toLowerCase()];
 }
 
 // returns reserves of token a and b in the order they are queried
-export async function getReserves(tokenA: string, tokenB: string): Promise<[string, string]>
-{
+export async function getReserves(
+  tokenA: string,
+  tokenB: string,
+): Promise<[string, string]> {
   const [token0, token1] = sortedFormatted(tokenA, tokenB);
 
   return client
@@ -205,46 +222,49 @@ export async function getReserves(tokenA: string, tokenB: string): Promise<[stri
       query: PAIR_RESERVES_BY_TOKENS,
       variables: {
         token0,
-        token1
-      }
+        token1,
+      },
     })
-    .then(({ data: { pairs: [{ reserve0, reserve1 }] }}): [string, string] => {
-      if (tokenA.toLowerCase() === token0)
-      {
-        return [
-          reserve0,
-          reserve1
-        ];
-      }
-      return [
-        reserve1,
-        reserve0
-      ];
-    })
+    .then(
+      ({
+        data: {
+          pairs: [{ reserve0, reserve1 }],
+        },
+      }): [string, string] => {
+        if (tokenA.toLowerCase() === token0) {
+          return [reserve0, reserve1];
+        }
+        return [reserve1, reserve0];
+      },
+    );
 }
 
-type ArrayElement<A> = A extends readonly (infer T)[] ? T : never
+type ArrayElement<A> = A extends readonly (infer T)[] ? T : never;
 
-type Swap = ArrayElement<SwapsByPairQuery['swaps']>
+type Swap = ArrayElement<SwapsByPairQuery['swaps']>;
 
 interface SwapMapped extends Swap {
-  amountAIn: string
-  amountAOut: string
-  amountBIn: string
-  amountBOut: string
+  amountAIn: string;
+  amountAOut: string;
+  amountBIn: string;
+  amountBOut: string;
 }
 
 // Gets the swaps (aka trades) done on tokenA x tokenB
-export async function getSwaps(tokenA: string, tokenB: string): Promise<SwapMapped[]>
-{
+export async function getSwaps(
+  tokenA: string,
+  tokenB: string,
+): Promise<SwapMapped[]> {
   const _24HoursAgo = Math.floor((Date.now() - DAY) / SECOND);
   const [token0, token1] = sortedFormatted(tokenA, tokenB);
 
-  let { data: {
-    pairs: [{ id: pairAddress }]
-  } } = await client.query({
+  let {
+    data: {
+      pairs: [{ id: pairAddress }],
+    },
+  } = await client.query({
     query: PAIR_FROM_TOKENS,
-    variables: { token0, token1 }
+    variables: { token0, token1 },
   });
 
   const sorted = isSorted(tokenA, tokenB);
@@ -253,19 +273,17 @@ export async function getSwaps(tokenA: string, tokenB: string): Promise<SwapMapp
   let results: SwapMapped[] = [];
   let finished = false;
 
-  while (!finished)
-  {
-    await client.query<SwapsByPairQuery, SwapsByPairQueryVariables>({
+  while (!finished) {
+    await client
+      .query<SwapsByPairQuery, SwapsByPairQueryVariables>({
         query: SWAPS_BY_PAIR,
-        variables: { skip, pairAddress, timestamp: _24HoursAgo }
-      }).then(({ data: { swaps } }): void => {
-        if (!swaps || swaps.length === 0)
-        {
+        variables: { skip, pairAddress, timestamp: _24HoursAgo },
+      })
+      .then(({ data: { swaps } }): void => {
+        if (!swaps || swaps.length === 0) {
           // No more swaps found for last 24 hours - end the query
           finished = true;
-        }
-        else
-        {
+        } else {
           // If not finished fetch the next set
           skip += swaps.length;
           results = results.concat(
@@ -275,12 +293,12 @@ export async function getSwaps(tokenA: string, tokenB: string): Promise<SwapMapp
                 amountAIn: sorted ? swap.amount0In : swap.amount1In,
                 amountAOut: sorted ? swap.amount0Out : swap.amount1Out,
                 amountBIn: sorted ? swap.amount1In : swap.amount0In,
-                amountBOut: sorted ? swap.amount1Out : swap.amount0Out
-              })
-            )
-          )
+                amountBOut: sorted ? swap.amount1Out : swap.amount0Out,
+              }),
+            ),
+          );
         }
-      })
+      });
   }
 
   // console.log(results);
@@ -300,5 +318,5 @@ export async function getSwaps(tokenA: string, tokenB: string): Promise<SwapMapp
     },
   */
 
-  return results
+  return results;
 }
